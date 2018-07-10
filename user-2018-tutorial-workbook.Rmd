@@ -244,7 +244,18 @@ don %>%
 We can see that the combination which is the most frequent is the one where all the variables are observed (13 values). Then, the second one is the one where T9, T12 and T15 are simultaneously missing (7 rows) (1 is missing, 0 is observed - there is a 1 for the second, third and fourth variables).
 
 
-We can look at the relationship between variables in a scatterplot and display the missing values using `geom_miss_point`. The points with missings are represented in red below the main cloud of points.
+We can look at the relationship between variables in a scatterplot, but we get a warning!
+
+```{r naniar-geom-point}
+
+ggplot(don,
+       aes(x = T9,
+           y = maxO3)) +
+  geom_point()
+
+```
+
+We can display the missing values using `geom_miss_point`. The points with missings are represented in red below the main cloud of points.
 
 ```{r naniar-geom-miss-point}
 
