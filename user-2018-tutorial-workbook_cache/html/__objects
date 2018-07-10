@@ -1,0 +1,67 @@
+unnamed-chunk-1	
+data	don	ozo	WindDirection
+packages	
+unnamed-chunk-2	
+don-miss-summaries	
+don-miss-var-summary	
+don-miss-var-table	
+vis-miss-don	
+don-vis-miss-cluster	
+don-arrange-vis-miss	
+gg-miss-var	
+don-gg-miss-var-pct	
+naniar-gg-miss-case	
+naniar-upset	
+naniar-geom-miss-point	
+don-geom-miss-facet-wrap	
+glimpse-shadow	
+don-maxO3-dens	
+don-density-t9-na	
+don-shadow-maxO3-na	
+don-shadow-group-by-summaries	
+unnamed-chunk-3	
+miss	data_miss	res.mca
+libmissMDA	
+unnamed-chunk-4	
+missMDA	imp	nb	res.comp	res.pca
+unnamed-chunk-5	
+unnamed-chunk-6	
+unnamed-chunk-7	res.amelia
+unnamed-chunk-8	
+unnamed-chunk-9	
+unnamed-chunk-10	
+unnamed-chunk-11	res.MIPCA
+unnamed-chunk-12	
+unnamed-chunk-13	
+unnamed-chunk-14	
+unnamed-chunk-15	fitamelia	resamelia
+unnamed-chunk-16	
+unnamed-chunk-17	fitMIPCA	res.MIPCA
+unnamed-chunk-18	poolamelia	poolMIPCA
+unnamed-chunk-19	don2	reg
+unnamed-chunk-20	fitamelia	fitMIPCA	poolamelia	poolMIPCA
+unnamed-chunk-21	Ecolo
+unnamed-chunk-22	biome	Ecolo	ind
+unnamed-chunk-23	
+unnamed-chunk-24	
+ecolo-ecolo	
+ecolo-gg-miss-var	
+ecolo-gg-miss-upset	
+ecolo-miss-case-table	
+unnamed-chunk-25	mis.ind	resMCA
+unnamed-chunk-26	imp	res.comp	res.pca
+unnamed-chunk-27	health	healthNA
+unnamed-chunk-28	res.mcaNA
+unnamed-chunk-29	res.impute
+unnamed-chunk-30	res.mca
+unnamed-chunk-31	res.famd	res.impute	res.ncp	vnf
+unnamed-chunk-32	res.rf
+unnamed-chunk-33	x.impmi	x.impmimca
+unnamed-chunk-34	lm.mice.out	pool.mice
+unnamed-chunk-35	fit	imp	res.pool
+unnamed-chunk-36	i	res.imp	res.mfa	year	impactfactor
+VIM	res
+VIM2	
+VIM-matrixplot	
+VIM-marginplot	
+unnamed-chunk-37	res

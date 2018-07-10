@@ -1,0 +1,260 @@
+---
+title: "A brief introduction to missing data visualisation"
+subtitle: "UseR! 2018 - Brisbane"
+author: "Nicholas Tierney <br> Monash University <br>  @nj_tierney"
+date: "Wednesday 12th July, 2018"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: xaringan-themer.css
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+class: inverse, center, middle
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+
+knitr::opts_chunk$set(dev = "png",
+                      dpi = 300,
+                      fig.width = 6, 
+                      fig.height = 4, 
+                      out.width="80%",
+                      fig.align = "center",
+                      echo = TRUE,
+                      cache = TRUE)
+
+library(tidyverse)
+library(visdat)
+library(naniar)
+library(leaflet)
+library(ggplot2)
+
+# data prep ----
+dat_sf_clean <- readr::read_rds("data/dat_sf_clean.rds")
+dat_sf_unclean <- readr::read_rds("data/dat_sf_unclean.rds")
+
+```
+
+
+```{r xaringan-themer, include=FALSE}
+library(xaringanthemer)
+mono_accent(
+  base_color = "#308bd2",
+  header_font_google = google_font("Josefin Sans"),
+  inverse_background_color = "#d29430",
+  inverse_header_color = "white",
+  text_bold_color = "#d24330",
+  inverse_text_color = "white",
+  text_font_google   = google_font("Montserrat", "300", "300i"),
+  code_font_family = "Fira Code",
+  code_font_url    = "https://cdn.rawgit.com/tonsky/FiraCode/1.204/distr/fira_code.css"
+)
+```
+
+# Motivation
+
+### Why would I want to deal with missing data?
+
+???
+
+I was handed a dataset in my PhD that had more than 65% of the data missing. 
+We had to spend quite a bit of time exploring the missingness relationships and
+the whole process was very frustrating, this inspired me to develop methods for
+exploring missing data, which ended up being a substantial part of my thesis
+
+But today we are going to talk about some example weather data from Melbourne.
+
+---
+class: center, middle
+# Example
+
+### San Francisco weather data 
+### || Date | Wind | Temp ||
+### Using the R package: [`GSODR`](https://github.com/ropensci/gsodr)
+### [(Global Surface Summary of the Day)](https://data.noaa.gov/dataset/global-surface-summary-of-the-day-gsod)
+
+### Written by Adam Sparks
+
+### github.com/ropensci/GSODR
+---
+
+```{r sf-intro-temp-data, out.width = "100%", echo = FALSE}
+# let's messy up the data
+ggplot(dat_sf_clean,
+       aes(x = date,
+           y = temp_avg)) + 
+  geom_line() 
+
+````
+
+---
+class: middle, center
+
+# Why data was missing
+
+```{r sf-final-miss-mech, out.width = "90%", echo = FALSE}
+
+  ggplot(dat_sf_clean,
+         aes(x = wind_speed_max,
+             y = temp_avg)) +  
+  geom_miss_point() 
+
+```
+
+
+???
+
+So here we can create a graphic where we can see the data that are present are in blue, and the data that are missing are in red. What we see here then is that the data that are missing for air temperature are in red here, but are actually measured only beyond gust speeds of 8 kpmh
+
+So in cases of strong winds, the air temperature measurements break. Done. Dusted.
+
+---
+class: inverse, center, middle
+
+.vvhugew[
+Wait, What?
+]
+
+???
+
+But, like all good explanations, this one is simple - but the process to get there, where we describe it, probably was not.
+
+In order to get to a position where you could generate this graphic, and show this data, you probably had to spend more time than you would have liked developing exploratory data analyses and models
+
+It might seem obvious to point out the precise mechanism for generating the missingness, but this is kind of difficult when there is a lot of missing data, or when there are many variables.  
+
+---
+class: center, middle
+background-color: #000000
+
+.vhugew[
+What dealing with missing data looks like in a paper
+]
+
+
+---
+
+background-image: url(https://njtierney.updog.co/gifs/narnia-doppel.jpg)
+background-size: contain 
+background-position: 50% 50%
+class: center, bottom, inverse
+
+---
+
+background-image: url(https://njtierney.updog.co/gifs/narnia-golf-beer.gif)
+background-color: #000000 
+background-size: contain 
+background-position: 50% 50%
+class: center, bottom, inverse
+
+---
+class: center, middle
+background-color: #000000
+
+.vhugew[
+What dealing with missing data actually looks like
+]
+
+---
+
+background-image: url(https://njtierney.updog.co/gifs/narnia-dart-throw.gif)
+background-size: contain 
+background-color: #000000 
+background-position: 50% 50%
+class: center, bottom, inverse
+
+---
+class:center, middle, inverse
+# Questions
+
+.vhugew[
+1. How to start looking at missing data
+
+2. How to start exploring why data is missing
+]
+
+---
+class: center, middle, inverse
+# Design Principles
+
+.vhugew[
+
+Easy to use
+
+Quick to remember
+
+Complement existing tools
+
+]
+???
+
+There's also these two other principles:
+
+1. Convenience - easy to remember and use
+2. Design / Philosophy - easy to use and interact with other tools
+
+To look at these questions I am going to discuss some tools that  I have built with Di Cook and Miles McBain, to facilitate the highlighting and exploration of missing values.
+
+I'll then move discuss the way that we can handle and manipulate missing data.
+
+I will then move to discuss the problems with current methods for exploring and visualising missings, and what we can do about it.
+
+---
+class: inverse, middle, center
+
+# Learn more
+
+```{r learn-more, echo = FALSE}
+knitr::include_graphics("https://njtierney.updog.co/img/hex-visdat-and-naniar.png")
+```
+
+.pull-left[
+.center[
+.hugew[
+visdat.njtierney.com
+
+`r icon::fa("twitter")` nj_tierney
+]
+]
+]
+
+.pull-right[
+.center[
+.hugew[
+naniar.njtierney.com
+
+
+`r icon::fa("github")` njtierney
+]
+]
+]
+
+
+
+
+---
+```{r logos, out.width = "60%", echo = FALSE}
+knitr::include_graphics("https://njtierney.updog.co/img/numbat-logo.png")
+knitr::include_graphics("https://njtierney.updog.co/img/monash-logo.png")
+knitr::include_graphics("https://njtierney.updog.co/img/ropensci-logo-long.png")
+```
+
+
+---
+background-image: url(https://njtierney.updog.co/img/img_contrib.png)
+background-color: #000000
+background-size: contain 
+background-position: 50% 50%
+class: center, bottom, inverse
+
+
+
+
+<!-- # https://i.imgur.com/qTFV3E7.gifv # GOLFER  -->
+<!-- # https://i.imgur.com/NrOpM05.gifv # bag throw into bin -->
+<!-- # https://i.imgur.com/ujOtU7a.gifv # gold bottle opener -->
+<!-- # https://i.imgur.com/5q1Ro4p.gifv # dart into arm -->
+<!-- # https://imgur.com/PviKkgC # 4 strangers outfits -->

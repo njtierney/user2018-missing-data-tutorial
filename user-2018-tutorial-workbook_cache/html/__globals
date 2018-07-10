@@ -1,0 +1,67 @@
+unnamed-chunk-1	install.packages	library	devtools	install_github
+data	ozo	read.table	WindDirection	don	summary	head	dim
+packages	library	VIM	FactoMineR	missMDA
+unnamed-chunk-2	dim	na.omit	don
+don-miss-summaries	library	naniar	tidyverse	pct_miss	don	n_miss	n_complete	pct_complete
+don-miss-var-summary	miss_var_summary	don	miss_case_summary
+don-miss-var-table	miss_var_table	don	miss_case_table
+vis-miss-don	library	visdat	vis_miss	don
+don-vis-miss-cluster	vis_miss	don
+don-arrange-vis-miss	don	%>%	arrange	maxO3	vis_miss	T12	maxO3v
+gg-miss-var	library	naniar	gg_miss_var	don
+don-gg-miss-var-pct	library	tidyverse	gg_miss_var	don	ylim
+naniar-gg-miss-case	gg_miss_case	don
+naniar-upset	
+naniar-geom-miss-point	ggplot	don	aes	T9	maxO3	geom_miss_point
+don-geom-miss-facet-wrap	ggplot	don	aes	T9	maxO3	geom_miss_point	facet_wrap	ozo	WindDirection	theme_dark
+glimpse-shadow	don	%>%	bind_shadow	glimpse
+don-maxO3-dens	ggplot	don	aes	maxO3	geom_density
+don-density-t9-na	don	%>%	bind_shadow	ggplot	aes	maxO3	T9_NA	geom_density
+don-shadow-maxO3-na	don	%>%	bind_shadow	ggplot	aes	T9	maxO3_NA	geom_density
+don-shadow-group-by-summaries	don	%>%	bind_shadow	group_by	maxO3_NA	summarise_at	vars	T9	funs	mean	sd	var	min	max
+unnamed-chunk-3	MCA
+miss	data_miss	data.frame	is.na	don	apply	x	c	res.mca	MCA	F	plot
+libmissMDA	library	missMDA
+unnamed-chunk-4	estim_ncpPCA	imputePCA
+missMDA	nb	estim_ncpPCA	don	ncp	plot	criterion	res.comp	imputePCA	completeObs	imp	cbind.data.frame	WindDirection	res.pca	PCA	head	ind	coord
+unnamed-chunk-5	library	Amelia
+unnamed-chunk-6	amelia
+unnamed-chunk-7	res.amelia	amelia	don
+unnamed-chunk-8	library	mice
+unnamed-chunk-9	imp.mice	mice	don
+unnamed-chunk-10	MIPCA	plot.MIPCA
+unnamed-chunk-11	res.MIPCA	MIPCA	don
+unnamed-chunk-12	compare.density	res.amelia
+unnamed-chunk-13	overimpute	res.amelia
+unnamed-chunk-14	plot	res.MIPCA
+unnamed-chunk-15	resamelia	lapply	res.amelia	imputations	as.data.frame	fitamelia	lm
+unnamed-chunk-16	imp.mice	mice	don	lm.mice.out	with	lm	maxO3	T9	T12	T15	Ne9	Ne12	Ne15	Vx9	Vx12	Vx15	maxO3v
+unnamed-chunk-17	res.MIPCA	lapply	res.MI	as.data.frame	fitMIPCA	lm
+unnamed-chunk-18	poolamelia	pool	as.mira	fitamelia	summary	poolMIPCA	fitMIPCA
+unnamed-chunk-19	don2	don	reg	lm	maxO3	.	any	summary	coeff	colnames	%in%	names	which.max
+unnamed-chunk-20	fitMIPCA	lapply	res.MIPCA	lm	poolMIPCA	pool	as.mira	summary	fitamelia	resamelia	poolamelia
+unnamed-chunk-21	Ecolo	read.csv
+unnamed-chunk-22	ind	which	rowSums	is.na	Ecolo	biome	dim
+unnamed-chunk-23	sum	is.na	Ecolo	nrow	ncol
+unnamed-chunk-24	dim	na.omit	Ecolo
+ecolo-ecolo	vis_miss	Ecolo
+ecolo-gg-miss-var	gg_miss_case	Ecolo	gg_miss_var
+ecolo-gg-miss-upset	gg_miss_upset	Ecolo
+ecolo-miss-case-table	miss_case_table	Ecolo	miss_var_table
+unnamed-chunk-25	mis.ind	matrix	nrow	Ecolo	ncol	is.na	dimnames	library	FactoMineR	resMCA	MCA	plot
+unnamed-chunk-26	library	missMDA	res.comp	imputePCA	Ecolo	imp	cbind.data.frame	completeObs	biome	res.pca	PCA	plot
+unnamed-chunk-27	library	FactoMineR	health	read.csv	T	dim	summary	healthNA
+unnamed-chunk-28	res.mcaNA	MCA	healthNA	c
+unnamed-chunk-29	library	missMDA	res.impute	imputeMCA	healthNA	c	tab.disj	apply	sum	comp	health
+unnamed-chunk-30	res.mca	MCA	healthNA	res.impute	tab.disj	plot	c
+unnamed-chunk-31	data	vnf	MCA	res.impute	imputeMCA	tab.disj	comp	res.ncp	estim_ncpFAMD	ozo	res.famd	imputeFAMD	completeObs
+unnamed-chunk-32	library	missForest	res.rf	ozo	ximp
+unnamed-chunk-33	library	mice	x.impmi	healthNA	c	x.impmimca	MIMCA
+unnamed-chunk-34	lm.mice.out	with	x.impmi	multinom	Alcohol	Pbsleep	Fatigue	Nightmare	pool.mice	pool	summary
+unnamed-chunk-35	imp	prelim	x.impmimca	healthNA	c	fit	with	multinom	Alcohol	Pbsleep	Fatigue	Nightmare	res.pool	pool	summary
+unnamed-chunk-36	library	denoiseR	data	impactfactor	summary	year	i	c	seq	res.imp	imputeMFA	rep	res.mfa	MFA	completeObs	paste	F	plot	points	ind	coord	text	plot.MFA
+VIM	res	summary	aggr	don	combinations
+VIM2	head	res	rev	order
+VIM-matrixplot	matrixplot	don
+VIM-marginplot	marginplot	don	c
+unnamed-chunk-37	library	VIM	aggr	Ecolo	res	summary	combinations

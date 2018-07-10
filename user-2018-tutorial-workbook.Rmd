@@ -1,0 +1,850 @@
+---
+title: "Handling missing values with R"
+author: "Julie Josse + Nick Tierney"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    css: hideOutput.css
+    includes:
+      in_header: hideOutput.script
+---
+
+```{r knitr-global-options, include=FALSE}
+library(knitr)
+library(rgl)
+opts_chunk$set(warning = FALSE,
+               message = FALSE, 
+               cache = TRUE, 
+               autodep = TRUE, 
+               tidy = FALSE, 
+               eval = TRUE)
+
+```
+
+# 1) Regression with NA (quantitative) for ozone
+
+First of all you will need to install the following packages
+
+```{r eval=FALSE}
+install.packages("VIM")
+install.packages("devtools")
+library(devtools)
+install_github("njtierney/naniar")
+
+install.packages("missMDA")
+install.packages("Amelia")
+install.packages("mice")
+install.packages("missForest")
+install.packages("FactoMineR")
+install.packages("tidyverse")
+```
+
+Air pollution is currently one of the most serious public health worries
+worldwide. Many epidemiological studies have proved the influence that some
+chemical compounds, such as sulphur dioxide (SO2), nitrogen dioxide (NO2), ozone
+(O3) can have on our health. Associations set up to monitor air quality are
+active all over the world to measure the concentration of these pollutants. They
+also keep a record of meteorological conditions such as temperature, cloud
+cover, wind, etc.
+
+We have at our disposal 112 observations collected during the summer of 2001 in
+Rennes. The variables available are:
+
+* maxO3 (maximum daily ozone) 
+* maxO3v (maximum daily ozone the previous day) 
+* T12 (temperature at midday) 
+* T9 
+* T15 (Temp at 3pm)
+* Vx12 (projection of the wind speed vector on the east-west axis at midday)
+* Vx9 and Vx15 as well as the Nebulosity (cloud) Ne9, Ne12, Ne15
+
+Here the final aim is to analyse the relationship between the maximum daily
+ozone (maxO3) level and the other meteorological variables. To do so we will
+perform regression to explain maxO3 in function of all the other variables. This
+data is incomplete - there are missing values. Indeed, it occurs frenquently to
+have machines that fail one day, leading to some information not recorded. We
+will therefore perform regression with missing values via multiple imputation.
+
+* Importing the data.
+
+```{r data}
+
+ozo <- read.table("ozoneNA.csv",
+                  header = TRUE,
+                  sep = ",",
+                  row.names = 1)
+
+WindDirection <- ozo[, 12]
+don <- ozo[, 1:11]   #### keep the continuous variables
+
+summary(don)
+head(don)
+dim(don)
+
+```
+
+* Load the libraries.
+```{r packages, results="hide", message=FALSE}
+library(VIM)
+library(FactoMineR)
+library(missMDA)
+```
+
+## 1.1) Descriptive statistics, visualization with missing values 
+
+__Q1__ When could it be a good idea to delete rows or columns with missing values to work with a complete data set? Could you do it here?
+
+```{r echo=TRUE}
+dim(na.omit(don))
+```
+
+<div class="hiddensolution">
+Deleting rows or columns is possible as long as there is enough data left and the missing values are of the MCAR type so that the sample is a subsample of the original data. We will obtain unbiased estimators but with more variance. Deleting observations with missing data for ozone data leads to a table with 13 rows. 
+</div>
+
+First, we perfom some descriptive statistics (how many missing? how many variables, individuals with missing?) and try to **inspect and vizualize the pattern of missing entries and get hints on the mechanism**.  For this purpose, we use the R package **naniar** as well as Multiple Correspondence Analysis (FactoMineR package). An alternative would be to use VIM 
+(Visualization and Imputation of Missing Values - Mathias Templ)   
+
+`naniar` provides principled, tidy ways to summarise, visualise, and manipulate missing data with minimal deviations from the workflows in ggplot2 and tidy data. 
+
+We can start off with some quick summaries of the amount of missing and complete
+data in `don` using:
+
+- `pct_miss()` To give us the percentage of missings in the data
+- `n_miss()` to give the number of missings, 
+
+and their `complete` equivalents:
+
+- `pct_complete()` To give us the percentage of completes in the data
+- `n_complete()` to give the number of complete values 
+
+```{r don-miss-summaries}
+library(naniar)
+library(tidyverse)
+
+pct_miss(don) # percentage of missing value in the data.
+n_miss(don) # number of missing values in the 
+n_complete(don) # without missing value
+pct_complete(don) # without missing value
+```
+
+This is useful, but would be repetitive if you wanted to repeat this for every variable. We can instead look at summaries across the **variables** and **cases**
+
+### 1.2.1) Tabulations and summaries
+
+You can find the number and percentage missings in each variable and case using `miss_case_summary` and `miss_var_summary`.
+
+```{r don-miss-var-summary}
+miss_var_summary(don)
+miss_case_summary(don)
+```
+
+Another way to summarise the missingness is to look at the number of times that there are a number of missings - to look at the _tabulations_ using: `miss_var_table` and `miss_case_table`. 
+
+These show the number of times that there are a certain number of missings in a variable or a case, respectively:
+
+```{r don-miss-var-table}
+miss_var_table(don)
+miss_case_table(don)
+```
+
+This shows us there are two variables with exactly 37 missings in both, but that each individual variable seems to have unique numbers of missings. We also note that there are no variables with zero missings.
+
+For the cases, we see that there are 13 cases with no missings, 24 with 1 missing, 22 with 2 missing, and so on.
+
+### 1.2.2) Visualisation
+
+A quick way to get a look at the missingness in the data is to use `vis_miss`.
+
+This visualises the missingness across the entire dataset.
+
+```{r vis-miss-don}
+library(visdat)
+
+vis_miss(don)
+
+```
+
+You can also apply clustering to find similar missingness groups by setting `cluster = TRUE`.
+
+```{r don-vis-miss-cluster}
+
+vis_miss(don, cluster = TRUE)
+
+```
+
+There are a lot of different clusters here, it is difficult to see clear relationships here.
+
+Another technique is to try arranging by different variables using `arrange`.
+
+```{r don-arrange-vis-miss}
+don %>%
+  arrange(maxO3) %>%
+  vis_miss()
+
+don %>%
+  arrange(T12) %>%
+  vis_miss()
+
+don %>%
+  arrange(maxO3v) %>%
+  vis_miss()
+
+```
+
+#### 1.2.3) Visualise missings across cases and variables.
+
+Another way to look at missings is to visualise them by `variables` and `cases`
+
+To visualise the missings for each variable, we use `gg_miss_var`:
+
+```{r gg-miss-var}
+library(naniar)
+gg_miss_var(don)
+```
+
+And show the percent missing by setting `show_pct = TRUE`, and set the ylimits to be between 0 and 100.
+
+```{r don-gg-miss-var-pct}
+library(tidyverse)
+gg_miss_var(don, 
+            show_pct = TRUE) + 
+  ylim(0, 100)
+```
+
+We can look at the missings across cases using `gg_miss_case`:
+
+```{r naniar-gg-miss-case}
+
+gg_miss_case(don)
+
+```
+
+And we can look at the combination and patterns of missingness by looking
+at an upset plot of the missingness - with **gg_miss_upset**. 
+
+The upset shows the combination of missings, by default choosing the 5 variables with the most missings, and then orders by the size of the missings in that set.
+
+We set `order.by = "freq"` to order the missingness by their frequency.
+
+```{r naniar-upset}
+
+#gg_miss_upset(don, 
+  #            order.by = "freq")
+
+```
+
+We can see that the combination which is the most frequent is the one where all the variables are observed (13 values). Then, the second one is the one where T9, T12 and T15 are simultaneously missing (7 rows) (1 is missing, 0 is observed - there is a 1 for the second, third and fourth variables).
+
+
+We can look at the relationship between variables in a scatterplot and display the missing values using `geom_miss_point`. The points with missings are represented in red below the main cloud of points.
+
+```{r naniar-geom-miss-point}
+
+
+ggplot(don,
+       aes(x = T9,
+           y = maxO3)) +
+  geom_miss_point()
+
+```
+
+We can then explore the missingness by some categorical variable using facetting:
+
+```{r don-geom-miss-facet-wrap}
+ggplot(don, 
+       aes(x = T9, 
+           y = maxO3)) + 
+  geom_miss_point() + 
+  facet_wrap(~ozo$WindDirection) + 
+  theme_dark()
+```
+
+
+To take a closer look at the distribution of missings we add some missingness indicator information to the data. We call this indicator information a "shadow matrix", and it gets added to the data with `bind_shadow`. This creates a copy of the data with the names "Variable_NA", and the values "NA" and "!NA" for missing, and not missing, respectively.
+
+```{r glimpse-shadow}
+don %>% bind_shadow() %>% glimpse()
+```
+
+This allows us to think about the "missingness" of a variable as it's own variable.
+
+So we can look at a density plot of `max03` in ggplot2:
+
+```{r don-maxO3-dens}
+
+ggplot(don,
+       aes(x = maxO3)) + 
+  geom_density()
+
+```
+
+We can use the "shadow matrix" to allow us to look at the density according to whether T9_NA is missing:
+
+```{r don-density-t9-na}
+don %>%
+  bind_shadow() %>%
+  ggplot(aes(x = maxO3,
+             fill = T9_NA)) +
+  geom_density()
+
+```
+
+Or equivalently look at the variable T9 according to whether `maxO3` is missing:
+
+```{r don-shadow-maxO3-na}
+
+don %>%
+  bind_shadow() %>%
+  ggplot(aes(x = T9,
+             fill = maxO3_NA)) +
+  geom_density()
+
+```
+
+We can see that the distribution of T9 is the same when maxO3 is oberved and when maxO3 is missing. If the two boxplots (red and blue) were very different it would imply that when maxO3 is missing the values of T9 can be very high or very low which lead to suspect the MAR hypothesis. 
+
+We can use `bind_shadow()` to then group by the missingness of a variable and perform some summary statistics on T9 for when maximum daily ozone level is present, and when it is missing.
+
+```{r don-shadow-group-by-summaries}
+don %>%
+  bind_shadow() %>%
+  group_by(maxO3_NA) %>%
+  summarise_at(
+    .vars = vars(T9),
+    .funs = funs(mean, sd, var, min, max),
+    na.rm = TRUE
+  )
+```
+
+
+__Q2__ Do you observe any associations between the missing entries ? When values are missing on a variable does it correspond to small or large values on another one ? 
+
+<div class="hiddensolution">
+We observe that the temperature variables T9, T12 and T15 tend to be missing together (probably indicating that thermometers failed) [as well as the Ne9, Ne12 and Ne15 variables.]
+We see more "red" values. We do not see more black or white values  which should imply that when T9 is missing it would have corresponded to high or low values in another variable which should suggest MAR missing values for instance. Here everything points to MCAR values.
+</div>
+
+__R1__ Create a categorical dataset with "o" when the value of the cell is observed and "m" when it is missing, and with the same row and column names as in the original data. Then, you can perform Multiple Correspondence Analysis with the MCA function of the FactoMineR package. 
+
+```{r eval=FALSE}
+?MCA
+```
+
+MCA can be seen as the counterpart of PCA for categorical data and here is used to study associations between missing and observed entries. MCA is a straightforwardly tool to visualise the missing data pattern even if the number of variable is large. It 
+shows if missing values simultaneously occur in several variables or if missing values occur when some other variables are observed
+
+<div class="hiddensolution">
+```{r miss}
+data_miss <- data.frame(is.na(don))
+data_miss <- apply(X=data_miss, FUN=function(x) if(x) "m" else "o", MARGIN=c(1,2))
+
+# data_miss <- as_shadow(don) with the naniar package.
+res.mca <- MCA(data_miss, graph = F)
+plot(res.mca, invis = "ind", title = "MCA graph of the categories", cex  = 0.5)
+```
+</div>
+
+
+## 1.3) PCA with missing values
+
+Then, before modeling the data, we perform a **PCA with missing values** to explore the correlation between variables. Use the R package **missMDA** dedicated to perform principal components methods with missing values and to impute data with PC methods.
+
+* Perform PCA with missing values using the 
+**imputePCA** functions, with the number of components determined by the **estim_ncpPCA**. Then plot the variables circle.
+
+```{r libmissMDA}
+library(missMDA)
+```
+
+```{r eval=FALSE,echo=TRUE}
+?estim_ncpPCA
+?imputePCA
+```
+
+The package missMDA allows the use of principal
+component methods for an incomplete data set. To achieve this goal in the case of PCA, the missing values are predicted using the iterative PCA algorithm for a predefined number of dimensions. Then, PCA is performed on the imputed data set. 
+The single imputation step requires tuning the number of dimensions used to impute the data. 
+
+```{r missMDA}
+nb <- estim_ncpPCA(don,method.cv = "Kfold", verbose = FALSE) # estimate the number of components from incomplete data
+#(available methods include GCV to approximate CV)
+nb$ncp #2
+plot(0:5, nb$criterion, xlab = "nb dim", ylab = "MSEP")
+res.comp <- imputePCA(don, ncp = nb$ncp) # iterativePCA algorithm
+res.comp$completeObs[1:3,] # the imputed data set
+imp <- cbind.data.frame(res.comp$completeObs,WindDirection)
+
+res.pca <- PCA(imp, quanti.sup = 1, quali.sup = 12, ncp = nb$ncp, graph=FALSE)
+plot(res.pca, hab=12, lab="quali");
+plot(res.pca, choix="var")
+head(res.pca$ind$coord) #scores (principal components)
+```
+
+The incomplete data set can be imputed using the function imputePCA performing the iterative PCA algorithm, specifying the number of dimensions through the argument ncp=2. 
+At convergence the algorithm provides both an estimation of the scores and loadings as well as a completed data set. The imputePCA function outputs the imputed data set.  The completed data set is in the object completeObs. The imputePCA function also outputs the fitted matrix $\hat X$ in the object fitted.
+
+__Q3__ Could you guess how cross-validation is performed to select the number of components? 
+
+<div class="hiddensolution">
+The cross-validation is performed with the Kfold methodFor the Kfold. A percentage pNA of missing values is inserted and predicted with a PCA model using ncp.min to ncp.max dimensions. This process is repeated nbsim times. The number of components which leads to the smallest MSEP (Mean Standard Error of Prediction) is retained. 
+
+Through the argument method.cv, the function estim_ncpPCA proposes several cross-validation procedures to choose this number. The
+default method is the generalised cross-validation method (method.cv="gcv"). It consists
+in searching the number of dimensions which minimises the generalised cross-validation criterion, which can be seen as an approximation of the leave-one-out cross-validation criterion. The procedure is very fast, because it does not require adding explicitly missing values and predicting them for each cell of the data set. However,
+the number of dimensions minimising the criterion can sometimes be unobvious when several local minimum occur. In such a case, more computationally intensive methods, those performing explicit cross-validation, can be used, such as Kfold (method.cv="Kfold") or
+leave-one-out (method.cv="loo"). 
+
+The Kfold cross-validation suggests to retain 2 dimensions for the imputation of the
+data set.
+</div>
+ 
+## 1.4) Multiple imputation
+
+### Generate multiple data sets
+We perform multiple imputation either assuming 
+1) Joint Modeling (one joint probabilistic model for the variables all together) - We use the R package Amelia, which is by default consider Gaussian distribution
+2) Condional Modeling (one model per variable) approach - We use the R package mice which by default consider one model of linear regression per variable
+3) a PCA based model - We use the R package missMDA
+
+For each approach we generate 100 imputed data sets.
+
+```{r }
+library(Amelia)
+```
+
+```{r eval=FALSE}
+?amelia
+```
+
+1)
+```{r, message = FALSE, warning=FALSE}
+res.amelia <- amelia(don, m = 5)  
+#names(res.amelia$imputations) 
+#res.amelia$imputations$imp1# the first imputed data set
+```
+
+2)
+```{r }
+library(mice)
+```
+
+```{r, eval=FALSE}
+imp.mice <- mice(don, m = 100, defaultMethod = "norm.boot") # the variability of the parameters is obtained 
+```
+
+3) 
+Now generate 100 imputed data sets with the MIPCA method and 2 components. Store the result in a variable called res.MIPCA.
+
+```{r eval=FALSE}
+?MIPCA
+?plot.MIPCA
+```
+
+```{r }
+res.MIPCA <- MIPCA(don, ncp = 2, nboot = 100) # MI with PCA using 2 dimensions 
+```
+
+The function MIPCA gives as output the data set imputed by the iterative PCA algorithm (in res.imputePCA) and the other data sets generated by the MIPCA algorithm (in res.MI). The number of data sets generated by this algorithm is controlled by the nboot argument, equal to 100 by default. The other arguments of this function are the same as
+those for the imputePCA function.
+
+### Inspect the imputed values
+Exploratory analysis is very important and even at this stage of the analysis.
+
+We will **inspect the imputed values created** to know if the imputation method should require more investigation or if we can continue and analyze the data. A common practice consists in comparing the distribution of the imputed values and of the observed values. Check the **compare.density** function. 
+
+```{r }
+compare.density(res.amelia, var = "T12")
+```
+
+__Q__ Do both distributions need to be close? Could the missing values differ from the observed ones both in spread and in location? 
+
+<div class="hiddensolution">
+Note that a difference between these distributions does not mean that the model is unsuitable.
+Indeed, when the missing data mechanism is not MCAR, it could make sense to observe differences between the distribution of imputed values and the distribution of observed values. However, if differences occur, more investigations would be required to try to explain them.  
+</div>
+
+The quality of imputation can also be assessed with cross-validation using the **overimpute** function. Each observed value is deleted and for each one 100 values are predicted (using the same MI method) and the mean and 90% confidence intervals are computed for these 100 values. Then, we inspect whether the observed value falls within the obtained interval. On the graph, the y=x line is plotted (where the imputations should fall if they were perfect), as well as the mean (dots) and intervals (lines) for each value. Around ninety percent of these confidence intervals should contain the y = x line, which means that the true observed value falls
+within this range. The color of the line (as coded in the legend) represents the
+fraction of missing observations in the pattern of missingness for that observation (ex: blue=0-2 missing entries). 
+
+```{r }
+overimpute(res.amelia, var = "maxO3")
+```
+
+* Comment the quality of the imputation.
+
+We can also examine the variability by projecting as supplementary tables the imputed data sets on the PCA configuration (plot the results of MI with PCA).
+
+```{r eval=TRUE}
+plot(res.MIPCA,choice= "ind.supp")
+plot(res.MIPCA,choice= "var")
+```
+
+The plots  represent the projection of the individuals (top)
+and variables (bottom) of each imputed data set as supplementary elements onto the reference configuration obtained with the  iterative PCA algorithm. For the individuals, a confidence area is constructed for each, and if one has no missing entries, its confidence area is restricted to a point. All the plots show that the variability across different imputations is small and a user can interpret the PCA results with confidence.
+
+### Perform regression
+
+MI aims to apply a statistical method on an incomplete data set.
+We now apply a regression model on each imputed data set of the amelia method and MIPCA methods.
+
+```{r }
+resamelia <- lapply(res.amelia$imputations, as.data.frame)
+# A regression on each imputed dataset
+fitamelia<-lapply(resamelia, lm, 
+                  formula="maxO3~ T9+T12+T15+Ne9+Ne12+Ne15+Vx9+Vx12+Vx15+maxO3v")  
+# fitamelia <- lapply(resamelia, with, 
+#                     lm(maxO3 ~ T9+T12+T15+Ne9+Ne12+Ne15+Vx9+Vx12+Vx15+maxO3v))
+```
+
+```{r eval=FALSE}
+imp.mice <- mice(don, m=100,defaultMethod="norm.boot") # the variability of the parameters is obtained 
+lm.mice.out <- with(imp.mice, lm(maxO3 ~ T9+T12+T15+Ne9+Ne12+Ne15+Vx9+Vx12+Vx15+maxO3v))
+```
+
+```{r}
+res.MIPCA <- lapply(res.MIPCA$res.MI, as.data.frame)
+fitMIPCA<-lapply(res.MIPCA,lm, formula="maxO3~T9+T12+T15+Ne9+Ne12+Ne15+Vx9+Vx12+Vx15+maxO3v")
+```
+
+* Aggregate the results of Regression with Multiple Imputation according to Rubin's rule for MI with amelia and with PCA with the 
+**pool** function from the mice package
+
+```{r }
+poolamelia<-pool(as.mira(fitamelia)) 
+summary(poolamelia)
+
+poolMIPCA<-pool(as.mira(fitMIPCA))
+summary(poolMIPCA)
+
+#pool.mice <- pool(lm.mice.out)
+#summary(pool.mice)
+```
+
+* Write a function that removes the variables with the largest pvalues step by step (each time a variable is removed the regression model is performed again) until all variables are significant.
+
+```{r }
+don2 <- don
+reg <- lm(maxO3 ~. , data = don2)
+while(any(summary(reg)$coeff[-1, 4]>0.05)){
+  don2 <- don2[,!(colnames(don2)%in%names(which.max(summary(reg)$coeff[-1, 4])))]
+  reg <- lm(maxO3 ~. , data = don2)
+  }
+
+```
+
+We combine the results and performed the **regression with missing values**
+
+```{r }
+# Submodel to compare
+fitMIPCA<-lapply(res.MIPCA,lm, formula="maxO3~ T12+Ne9+Vx12+maxO3v")
+poolMIPCA<-pool(as.mira(fitMIPCA))
+summary(poolMIPCA)
+#lm.mice.out <- with(imp.mice, lm(maxO3 ~ T12+Ne9+Vx12+maxO3v))
+#pool.mice <- pool(lm.mice.out)
+#summary(pool.mice)
+fitamelia<-lapply(resamelia,lm, formula="maxO3~ T12+Ne9+Vx12+maxO3v")
+poolamelia<-pool(as.mira(fitamelia))
+summary(poolamelia) 
+```
+
+## 1.5) Ecological example
+
+
+Studies in community ecology aim to understand how and why individuals of different species co-occur in the same location at the same time. Hence, ecologists usually collect and store data on species distribution as tables containing the abundances of different species in several sampling sites. Additional information such as measures of environmental variables or species traits can also be recorded to examine the effects of abiotic features (characteristics, i.e. due to physico-chemical action and no biological action) and biotic features. 
+Several projects compile data from preexisting databases. Due to the wide heterogeneity of measurement methods and research objectives, these huge data sets are often characterized by a high number of missing values. Hence, in addition to ecological questions, such data sets also present some important methodological and technical challenges for multivariate analysis. 
+The GLOPNET data set contains 6 traits measured for 2494 plant species: LMA (leaf mass per area), LL (leaf lifes-pan), Amass (photosynthetic assimilation), Nmass (leaf nitrogen), Pmass (leaf phosphorus), Rmass (dark respiration rate). The last four variables are expressed per leaf dry mass. GLOPNET is a compilation of several existing data sets and thus contains a large proportion of missing values. All traits were log-normally distributed and log-transformed before analysis. 
+
+
+```{r}
+Ecolo <- read.csv("ecological.csv", header = TRUE, sep=";",dec=",")
+```
+
+
+```{r}
+## Delete species with only missing values for contiuous variables
+ind <- which(rowSums(is.na(Ecolo[,-1])) == 6)
+biome <- Ecolo[-ind,1]    ### Keep a categorical variable
+Ecolo <- Ecolo[-ind,-1]   ### Select continuous variables
+dim(Ecolo)
+```
+
+
+```{r}
+## proportion of missing values
+sum(is.na(Ecolo))/(nrow(Ecolo)*ncol(Ecolo)) # 55% of missing values
+```
+
+
+```{r}
+## Delete species with missing values
+dim(na.omit(Ecolo)) # only 72 remaining species!
+```
+
+53.38\% of the entries in the GLOPNET data set are missing. Only 72 species have complete information for the 6 traits and the proportion of missing values varied between 4.97 % (LMA) to 89.01 % (Rmass).
+
+```{r ecolo-ecolo}
+vis_miss(Ecolo)
+vis_miss(Ecolo, cluster = TRUE)
+```
+
+```{r ecolo-gg-miss-var}
+gg_miss_case(Ecolo)
+gg_miss_var(Ecolo)
+```
+
+```{r ecolo-gg-miss-upset}
+gg_miss_upset(Ecolo,
+              order.by = "freq")
+```
+
+```{r ecolo-miss-case-table}
+miss_case_table(Ecolo)
+miss_var_table(Ecolo)
+```
+
+
+```{r}
+# Visualize the pattern
+# library(VIM)
+#aggr(Ecolo)
+# aggr(Ecolo,only.miss=TRUE,numbers=TRUE,sortVar=TRUE)
+# res <- summary(aggr(Ecolo,prop=TRUE,combined=TRUE))$combinations
+#res[rev(order(res[,2])),]
+
+mis.ind <- matrix("o",nrow=nrow(Ecolo),ncol=ncol(Ecolo))
+mis.ind[is.na(Ecolo)] <- "m"
+dimnames(mis.ind) <- dimnames(Ecolo)
+library(FactoMineR)
+resMCA <- MCA(mis.ind)
+plot(resMCA,invis="ind",title="MCA graph of the categories")
+```
+
+
+```{r}
+### Impute the incomplete data set
+library(missMDA)
+### nb <- estim_ncpPCA(Ecolo,method.cv="Kfold",nbsim=100) ### Time consuming!
+res.comp <- imputePCA(Ecolo,ncp=2)
+
+#Perform a PCA on the completed data set
+imp <- cbind.data.frame(res.comp$completeObs,biome)
+res.pca <- PCA(imp,quali.sup=7,graph=FALSE)
+plot(res.pca, hab=7, lab="quali")
+plot(res.pca, hab=7, lab="quali",invisible="ind")
+plot(res.pca, choix="var")
+
+# Compare with PCA on the data imputed by the mean
+PCA(Ecolo)
+```
+
+This first axis corresponding to the "leaf economic spectrum" separates species with potential for quick returns for investment with high values for Nmass, Amass, Rmass and Pmass and low values for LL and LMA (right part) from species with slow returns on the left part. Scores for the traits are very consistent between methods, to a lesser extent for the Mean. 
+This representation can be used to add external information: grouping species by major biomes illustrates the universality of the leaf economic spectrum but also some specificities (e.g., Desert and Boreal forest mainly contain species of the quick-return end). 
+
+The graphical representation obtained by the Mean imputation highlights a very particular shape indicating that results are not reliable. 
+
+# 2) Categorical/mixed/multi-block data with missing values
+
+## 2.1) Single imputation of categorical data with MCA/ MCA with missing values
+We use the survey data set health concerning students' health. 320 students answered 20 questions on their consumption of products (drugs, alcohol), on their psychological state and their sleeping condition. In addition, we have information regarding their gender, age and accommodation. 
+The aim is to study the principal dimensions of variability of this data and to see if there are relationships between alcohol consumption and psychological state for instance. Then, after grouping individuals with the same profile, one can "label" them and see if there are relationships with the socio-economic questions. 
+
+Missing values are inserted to illustrate the methods.
+
+```{r}
+library(FactoMineR)
+health <- read.csv("sante.tex",sep=";",header=T)
+dim(health)
+summary(health)
+healthNA <-health 
+healthNA[5:10,4:6] <- NA
+healthNA[55:60,12:14] <- NA
+```
+
+
+First, we can explore the pattern of missing using MCA (by default it codes a missing values as a new category):
+
+```{r}
+res.mcaNA  <- MCA(healthNA, quali.sup = c(7:11))
+```
+
+We can also explore some of the `healthNA` missingness using tools from naniar:
+
+* vis_miss
+* gg_miss_var
+* gg_miss_case
+
+Then, we can study the similarities between the students and the associations between categories  performing MCA while skipping the missing values.  We  carry-out the following steps:
+
+```{r}
+library(missMDA)
+## First the number of components has to be estimated
+# nb <- estim_ncpMCA(healthNA[,c(1:6,12:20)],ncp.max=10) ## Time-consuming, nb = 5
+
+## Impute the indicator matrix and perform MCA
+res.impute <- imputeMCA(healthNA[,c(1:6,12:20)], ncp=5)
+res.impute$tab.disj[1:10, 10:21]
+apply(res.impute$tab.disj[1:10, 12:15],1,sum) # sum to 1 per variable
+res.impute$comp[5:10,4:6]  # the completed data set with the most plausible category
+health[5:10,4:6]
+```
+```{r}
+## The imputed indicator matrix can be used as an input of the MCA function of the
+## FactoMineR package to perform the MCA on the incomplete data 
+
+res.mca <- MCA(healthNA,tab.disj=res.impute$tab.disj,quali.sup=7:11) 
+
+plot(res.mca, invisible=c("var","quali.sup"))
+plot(res.mca, invisible=c("ind","quali.sup"), cex = 0.6)
+plot(res.mca, invisible=c("ind","var"),  cex = 0.6)
+plot(res.mca,invisible=c("ind"),autoLab="yes", selectMod="cos2 15", cex  = 0.6)
+plot(res.mca,autoLab="yes", selectMod="cos2 5", select="cos2 5")
+
+res.mca
+```
+
+
+```{r}
+ ## Another ex of imputation of categorical data
+data(vnf)
+
+# Look at the pattern of missing values with MCA
+MCA(vnf)
+
+#1) select the number of components
+#nb <- estim_ncpMCA(vnf, ncp.max = 5) #Time-consuming, nb = 4
+
+#2) Impute the indicator matrix 
+res.impute <- imputeMCA(vnf, ncp = 4)
+res.impute$tab.disj[1:5, 1:5]
+res.impute$comp[1:5, 1:5]
+
+## 2.2) Single imputation for mixed data with FAMD and with Forest
+
+ res.ncp <- estim_ncpFAMD(ozo)
+ res.famd <-imputeFAMD(ozo, ncp = 2)
+ res.famd$completeObs[1:5,1:5]
+```
+
+
+```{r}
+library(missForest)
+ res.rf <- missForest(ozo)
+ res.rf$ximp[1:5,1:5]
+```
+ 
+## 2.3) Multiple imputation for categorical data: Multinomial regression with missing values
+
+To perform a multinomial regression with missing values, we can use Multiple Imputation. 
+
+```{r}
+# With mice
+library(mice)
+x.impmi<-mice(healthNA[,c(1:6,12:20)], m = 5, printFlag = FALSE)
+
+# with MCA
+x.impmimca<-MIMCA(healthNA[,c(1:6,12:20)], ncp = 5)
+```
+
+
+
+```{r}
+# Perfoming a model on each imputed data table 
+lm.mice.out <- with( x.impmi, nnet::multinom(Alcohol ~ Pbsleep + Fatigue +Nightmare,  trace = FALSE)) 
+pool.mice <- pool(lm.mice.out) #combining the results
+summary(pool.mice)
+```
+
+```{r}
+imp<-prelim(x.impmimca,healthNA[,c(1:6,12:20)])
+fit <- with(data=imp,exp=nnet::multinom(Alcohol ~ Pbsleep + Fatigue +Nightmare,  trace = FALSE))
+res.pool<-pool(fit)
+summary(res.pool)
+```
+
+
+## 2.3) Imputation with groups of variables/Multiple Factor Analysis with missing values.
+
+Let us consider the journal impact factors data from
+journalmetrics.com. We use a subset of 443 journals of the same sections than Journal of
+Statistical Software (Computer Science :: Software", Decision Sciences :: Statistics, Probability
+and Uncertainty" and Mathematics :: Statistics and Probability"). This data has
+45 columns which correspond to three metrics recorded each year from 1999 to 2013: IPP -
+impact per publication (it is closed to the ISI impact factor but for three rather than two
+years), SNIP - source normalized impact per paper (tries to weight by the number of citations
+per subject field to adjust for different citation cultures) and the SJR - SCImago journal rank
+(tries to capture average prestige per publication). This data contains 31% of missing values.
+We impute it with single imputation by Multiple Factor Analysis.
+
+```{r}
+library(denoiseR)
+data(impactfactor)
+summary(impactfactor)
+year=NULL; for (i in 1: 15) year= c(year, seq(i,45,15)) 
+res.imp <- imputeMFA(impactfactor,  group = rep(3, 15),  type = rep("s", 15))
+
+## MFA on the imputed data set
+res.mfa  <-MFA(res.imp$completeObs, group=rep(3,15),  type=rep("s",15), 
+name.group=paste("year", 1999:2013,sep="_"),graph=F)
+
+plot(res.mfa, choix = "ind", select = "contrib 15", habillage = "group", cex = 0.7)
+points(res.mfa$ind$coord[c("Journal of Statistical Software", "Journal of the American Statistical Association", "Annals of Statistics"), 1:2], col=2, cex=0.6)
+text(res.mfa$ind$coord[c("Journal of Statistical Software"), 1], 
+res.mfa$ind$coord[c("Journal of Statistical Software"), 2],cex=1,
+labels=c("Journal of Statistical Software"),pos=3, col=2)
+plot.MFA(res.mfa,choix="var", cex=0.5,shadow=TRUE, autoLab = "yes")
+plot(res.mfa, select="IEEE/ACM Transactions on Networking",  partial="all", habillage="group",unselect=0.9,chrono=TRUE)
+```
+
+
+# 3) Contingency tables with count data and missing values
+
+# 4) Multilevel (mixed) data with missing values
+
+
+
+
+# Alternative approach for visualising missingness
+
+The function VIM **aggr** calculates and represents the number of missing entries in each variable and for certain combinations of variables (which tend to be missing simultaneously).
+
+```{r VIM}
+res<-summary(aggr(don, sortVar=TRUE))$combinations
+```
+
+```{r VIM2}
+head(res[rev(order(res[,2])),])
+```
+
+
+The VIM function **matrixplot** creates a matrix plot in which all cells of a data matrix are visualized by rectangles. Available data is coded according to a continuous color scheme (gray scale), while missing/imputed data is visualized by a clearly distinguishable color (red). If you use Rstudio the plot is not interactive (there are the warnings), but if you use R directly, you can click on a column of your choice: the rows are sorted (decreasing order) of the values of this column. This is useful to check if there is an association between the value of a variable and the missingness of another one.
+
+```{r VIM-matrixplot}
+matrixplot(don, sortby = 2)
+#Here the variable selected is variable 2. 
+```
+
+
+
+The VIM function **marginplot** creates a scatterplot with additional information on the missing values. If you plot the variables (x,y), the points with no missing values are represented as in a standard scatterplot. The points for which x (resp. y) is missing are represented in red along the y (resp. x) axis. In addition, boxplots of the x and y variables are represented along the axes with and without missing values (in red all variables x where y is missing, in blue all variables x where y is observed).
+
+```{r VIM-marginplot}
+marginplot(don[,c("T9","maxO3")])
+```
+
+```{r}
+# Visualize the pattern
+library(VIM)
+#aggr(Ecolo)
+aggr(Ecolo,
+     only.miss = TRUE,
+     numbers = TRUE,
+     sortVar = TRUE)
+
+res <- summary(aggr(Ecolo, prop = TRUE, combined = TRUE))$combinations
+#res[rev(order(res[,2])),]
+```
+
