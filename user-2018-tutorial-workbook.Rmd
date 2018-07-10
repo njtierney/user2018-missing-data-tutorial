@@ -309,7 +309,7 @@ don %>%
 
 ```
 
-We can see that the distribution of T9 is the same when maxO3 is oberved and when maxO3 is missing. If the two boxplots (red and blue) were very different it would imply that when maxO3 is missing the values of T9 can be very high or very low which lead to suspect the MAR hypothesis. 
+We can see that the distribution of T9 is the same when maxO3 is oberved and when maxO3 is missing. If the two densities (red and blue) were very different it would imply that when maxO3 is missing the values of T9 can be very high or very low which lead to suspect the MAR hypothesis. 
 
 We can use `bind_shadow()` to then group by the missingness of a variable and perform some summary statistics on T9 for when maximum daily ozone level is present, and when it is missing.
 
