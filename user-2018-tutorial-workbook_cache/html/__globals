@@ -11,7 +11,7 @@ don-arrange-vis-miss	don	%>%	arrange	maxO3	vis_miss	T12	maxO3v
 gg-miss-var	library	naniar	gg_miss_var	don
 don-gg-miss-var-pct	library	tidyverse	gg_miss_var	don	ylim
 naniar-gg-miss-case	gg_miss_case	don
-naniar-upset	
+naniar-upset	library	UpSetR	don	%>%	as_shadow_upset	upset
 naniar-geom-miss-point	ggplot	don	aes	T9	maxO3	geom_miss_point
 don-geom-miss-facet-wrap	ggplot	don	aes	T9	maxO3	geom_miss_point	facet_wrap	ozo	WindDirection	theme_dark
 glimpse-shadow	don	%>%	bind_shadow	glimpse

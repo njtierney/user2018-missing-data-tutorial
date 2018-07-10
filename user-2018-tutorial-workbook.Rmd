@@ -234,6 +234,11 @@ We set `order.by = "freq"` to order the missingness by their frequency.
 #gg_miss_upset(don, 
   #            order.by = "freq")
 
+library(UpSetR)
+don %>%
+  as_shadow_upset() %>%
+  upset()
+
 ```
 
 We can see that the combination which is the most frequent is the one where all the variables are observed (13 values). Then, the second one is the one where T9, T12 and T15 are simultaneously missing (7 rows) (1 is missing, 0 is observed - there is a 1 for the second, third and fourth variables).
